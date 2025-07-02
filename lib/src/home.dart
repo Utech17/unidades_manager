@@ -42,9 +42,7 @@ class _HomeState extends State<Home> {
     ];
     return Scaffold(
       drawer: MenuLateral(),
-      appBar: AppBar(
-        title: const Text('Bienvenido a Unidades Manager'),
-      ),
+      appBar: AppBar(title: const Text('Bienvenido a Unidades Manager')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
@@ -96,12 +94,12 @@ class MenuLateral extends StatelessWidget {
               color: AppColors.primary,
               image: DecorationImage(
                 fit: BoxFit.fitWidth,
-                image: AssetImage('assets/imagenes/logo-iujo.png'),
+                image: AssetImage('assets/imagenes/logoum.png'),
               ),
             ),
             child: Text(
-              '...::: Menú Lateral :::...',
-             style: TextStyle(color: AppTextColors.inverseText, fontSize: 14),
+              '',
+              style: TextStyle(color: AppTextColors.inverseText, fontSize: 14),
             ),
           ),
           ListTile(
@@ -120,14 +118,22 @@ class MenuLateral extends StatelessWidget {
               Navigator.pushNamed(context, '/unidades');
             },
           ),
-          // ListTile(
-          //   leading: Icon(Icons.assignment),
-          //   title: Text('Formulario'),
-          //   onTap: () {
-          //     Navigator.of(context).pop();
-          //     Navigator.pushNamed(context, '/formulario');
-          //   },
-          // ),
+          ListTile(
+            leading: Icon(Icons.add_a_photo_rounded),
+            title: Text('Captura de Imagen'),
+            onTap: () {
+              Navigator.of(context).pop();
+              Navigator.pushNamed(context, '/Imagen');
+            },
+          ),
+                    ListTile(
+            leading: Icon(Icons.settings),
+            title: Text('Configuración'),
+            onTap: () {
+              Navigator.of(context).pop();
+              Navigator.pushNamed(context, '/configuracion');
+            },
+          ),
           ListTile(
             leading: Icon(Icons.exit_to_app),
             title: Text('Salir'),
@@ -198,7 +204,10 @@ abstract class DialogoSalir {
                   exit(0);
                 },
                 color: AppColors.error,
-                child: Text('Si', style: TextStyle(color: AppTextColors.inverseText)),
+                child: Text(
+                  'Si',
+                  style: TextStyle(color: AppTextColors.inverseText),
+                ),
               ),
               SizedBox(width: 10.0),
               MaterialButton(
@@ -211,7 +220,10 @@ abstract class DialogoSalir {
                   Navigator.of(context).pop();
                 },
                 color: AppColors.primary,
-                child: Text('No', style: TextStyle(color: AppTextColors.inverseText)),
+                child: Text(
+                  'No',
+                  style: TextStyle(color: AppTextColors.inverseText),
+                ),
               ),
               SizedBox(width: 10.0),
             ],

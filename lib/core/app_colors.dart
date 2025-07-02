@@ -1,15 +1,15 @@
 import 'dart:ui';
 
 class AppColors {
-  static const Color primary = Color(0xFF606ce4);
-  static const Color secondary = Color.fromARGB(255, 72, 80, 173);
-  static const Color accent = Color(0xFF606ce4);
+  static const Color primary = Color(0xFF1D68FF);
+  static const Color secondary = Color.fromARGB(255, 18, 85, 219);
+  static const Color accent = Color.fromARGB(255, 58, 123, 255);
     static const Color error = Color.fromARGB(255, 254, 65, 65);
 
   //Backgrounds
   static const Color background = Color(0xFFF8F4FF);
-  static const Color backgroundComponent = Color(0xFF260450);
-  static const Color backgroundComponentSelected = Color(0xFFA472E2);
+  static const Color backgroundComponent = Color.fromARGB(255, 0, 18, 54);
+  static const Color backgroundComponentSelected = Color.fromARGB(255, 94, 148, 255);
 }
 
 class AppTextColors {
