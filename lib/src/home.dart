@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:unidades_manager/core/app_colors.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -43,7 +44,6 @@ class _HomeState extends State<Home> {
       drawer: MenuLateral(),
       appBar: AppBar(
         title: const Text('Bienvenido a Unidades Manager'),
-        centerTitle: true,
       ),
       body: Center(
         child: Padding(
@@ -51,7 +51,7 @@ class _HomeState extends State<Home> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.group, size: 80, color: Colors.blue),
+              Icon(Icons.group, size: 80, color: AppColors.primary),
               SizedBox(height: 24),
               Text(
                 'Grupo 1',
@@ -93,15 +93,15 @@ class MenuLateral extends StatelessWidget {
         children: <Widget>[
           const DrawerHeader(
             decoration: BoxDecoration(
-              color: Colors.blue,
+              color: AppColors.primary,
               image: DecorationImage(
                 fit: BoxFit.fitWidth,
                 image: AssetImage('assets/imagenes/logo-iujo.png'),
               ),
             ),
             child: Text(
-              '...::: Menu Lateral :::...',
-              style: TextStyle(color: Colors.white, fontSize: 14),
+              '...::: Menú Lateral :::...',
+             style: TextStyle(color: AppTextColors.inverseText, fontSize: 14),
             ),
           ),
           ListTile(
@@ -197,8 +197,8 @@ abstract class DialogoSalir {
                   Navigator.of(context).pop(); // Cierra el Drawer o el diálogo
                   exit(0);
                 },
-                color: Colors.blueGrey,
-                child: Text('Si', style: TextStyle(color: Colors.white)),
+                color: AppColors.error,
+                child: Text('Si', style: TextStyle(color: AppTextColors.inverseText)),
               ),
               SizedBox(width: 10.0),
               MaterialButton(
@@ -210,8 +210,8 @@ abstract class DialogoSalir {
                 onPressed: () {
                   Navigator.of(context).pop();
                 },
-                color: Colors.blue,
-                child: Text('No', style: TextStyle(color: Colors.white)),
+                color: AppColors.primary,
+                child: Text('No', style: TextStyle(color: AppTextColors.inverseText)),
               ),
               SizedBox(width: 10.0),
             ],

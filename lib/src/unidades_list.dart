@@ -38,7 +38,17 @@ class _UnidadesListState extends State<UnidadesList> {
     super.dispose();
   }
 
-  void _mostrarFormulario() {
+  void _mostrarFormulario({Map<String, dynamic>? unidad, bool soloConsulta = false}) {
+    if (unidad != null) {
+      _placaController.text = unidad['placa'];
+      _descripcionController.text = unidad['descripcion'];
+      _modeloSeleccionado = unidad['modelo'];
+      _descripcionModeloController.text = unidad['descripcionModelo'] ?? '';
+      _puestosController.text = unidad['puestos'].toString();
+      _tipoSeleccionado = unidad['tipo'];
+      _anioController.text = unidad['anio'].toString();
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -54,9 +64,9 @@ class _UnidadesListState extends State<UnidadesList> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text(
-                    'Nueva Unidad',
-                    style: TextStyle(
+                  Text(
+                    soloConsulta ? 'Detalles de la Unidad' : 'Nueva Unidad',
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
@@ -68,8 +78,9 @@ class _UnidadesListState extends State<UnidadesList> {
                       labelText: 'Placa',
                       border: OutlineInputBorder(),
                     ),
+                    readOnly: soloConsulta,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
+                      if (!soloConsulta && (value == null || value.isEmpty)) {
                         return 'Por favor ingrese la placa';
                       }
                       return null;
@@ -83,6 +94,7 @@ class _UnidadesListState extends State<UnidadesList> {
                       border: OutlineInputBorder(),
                     ),
                     maxLines: 2,
+                    readOnly: soloConsulta,
                   ),
                   const SizedBox(height: 15),
                   DropdownButtonFormField<String>(
@@ -93,12 +105,14 @@ class _UnidadesListState extends State<UnidadesList> {
                         child: Text(modelo),
                       );
                     }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _modeloSeleccionado = value!;
-                        _descripcionModeloController.clear();
-                      });
-                    },
+                    onChanged: soloConsulta
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _modeloSeleccionado = value!;
+                              _descripcionModeloController.clear();
+                            });
+                          },
                     decoration: const InputDecoration(
                       labelText: 'Modelo',
                       border: OutlineInputBorder(),
@@ -108,11 +122,14 @@ class _UnidadesListState extends State<UnidadesList> {
                   TextFormField(
                     controller: _descripcionModeloController,
                     decoration: InputDecoration(
-                      labelText: 'Descripción del modelo',
+                      labelText: 'Descripción del Modelo',
                       border: const OutlineInputBorder(),
-                      hintText: 'Ingrese detalles específicos de este modelo',
+                      hintText: soloConsulta
+                          ? null
+                          : 'Ingrese detalles específicos de este modelo',
                     ),
                     maxLines: 2,
+                    readOnly: soloConsulta,
                   ),
                   const SizedBox(height: 15),
                   TextFormField(
@@ -122,11 +139,12 @@ class _UnidadesListState extends State<UnidadesList> {
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
+                    readOnly: soloConsulta,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
+                      if (!soloConsulta && (value == null || value.isEmpty)) {
                         return 'Por favor ingrese la cantidad';
                       }
-                      if (int.tryParse(value) == null) {
+                      if (!soloConsulta && int.tryParse(value!) == null) {
                         return 'Ingrese un número válido';
                       }
                       return null;
@@ -141,7 +159,7 @@ class _UnidadesListState extends State<UnidadesList> {
                         child: Text(tipo),
                       );
                     }).toList(),
-                    onChanged: (value) {
+                    onChanged: soloConsulta ? null : (value) {
                       setState(() {
                         _tipoSeleccionado = value!;
                       });
@@ -159,43 +177,48 @@ class _UnidadesListState extends State<UnidadesList> {
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
+                    readOnly: soloConsulta,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
+                      if (!soloConsulta && (value == null || value.isEmpty)) {
                         return 'Por favor ingrese el año';
                       }
-                      if (int.tryParse(value) == null) {
+                      if (!soloConsulta && int.tryParse(value!) == null) {
                         return 'Ingrese un año válido';
                       }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        child: const Text('Cancelar', style: TextStyle(color: AppTextColors.inverseText)),
-                      ),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                        ),
-                        onPressed: () {
-                          if (_formKey.currentState!.validate()) {
-                            _agregarUnidad();
+                  if (!soloConsulta) ...[
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.error,
+                          ),
+                          onPressed: () {
                             Navigator.pop(context);
-                          }
-                        },
-                        child: const Text('Guardar', style: TextStyle(color: AppTextColors.inverseText)),
-                      ),
-                    ],
-                  ),
+                          },
+                          child: const Text('Cancelar', 
+                              style: TextStyle(color: AppTextColors.inverseText)),
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                          ),
+                          onPressed: () {
+                            if (_formKey.currentState!.validate()) {
+                              _agregarUnidad();
+                              Navigator.pop(context);
+                            }
+                          },
+                          child: const Text('Guardar', 
+                              style: TextStyle(color: AppTextColors.inverseText)),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -230,7 +253,7 @@ class _UnidadesListState extends State<UnidadesList> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestión de Unidades'),
+        title: const Text('Lista de Unidades'),
         backgroundColor: AppColors.primary,
         foregroundColor: AppTextColors.inverseText,
       ),
@@ -265,29 +288,65 @@ class _UnidadesListState extends State<UnidadesList> {
                 final unidad = _unidades[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  child: ListTile(
-                    leading: const Icon(Icons.directions_bus, color: AppColors.primary),
-                    title: Text(unidad['placa'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('${unidad['modelo']} - ${unidad['tipo']}'),
-                        if (unidad['descripcionModelo'] != null && unidad['descripcionModelo'].isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4.0),
-                            child: Text(
-                              unidad['descripcionModelo'],
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[600],
-                              ),
+                  child: InkWell(
+                    onTap: () {
+                      _mostrarFormulario(unidad: unidad, soloConsulta: true);
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.directions_bus, color: AppColors.primary),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(unidad['placa'], 
+                                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 4),
+                                Text('${unidad['modelo']} - ${unidad['tipo']}'),
+                                if (unidad['descripcionModelo'] != null && 
+                                    unidad['descripcionModelo'].isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4.0),
+                                    child: Text(
+                                      unidad['descripcionModelo'],
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                      ],
+                          Text('${unidad['puestos']} puestos'),
+                          PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert),
+                            itemBuilder: (BuildContext context) {
+                              return [
+                                const PopupMenuItem<String>(
+                                  value: 'modificar',
+                                  child: Text('Modificar'),
+                                ),
+                                const PopupMenuItem<String>(
+                                  value: 'eliminar',
+                                  child: Text('Eliminar'),
+                                ),
+                              ];
+                            },
+                            onSelected: (String value) {
+                              if (value == 'modificar') {
+
+                              } else if (value == 'eliminar') {
+
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                     ),
-                    trailing: Text('${unidad['puestos']} puestos'),
-                    onTap: () {
-                    },
                   ),
                 );
               },
