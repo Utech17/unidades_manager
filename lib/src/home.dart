@@ -59,13 +59,12 @@ class _HomeState extends State<Home> {
               ),
               SizedBox(height: 16),
               Text(
-                'Integrantes:',  
+                'Integrantes:',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
-              ...integrantes.map((nombre) => Text(
-                nombre,
-                style: TextStyle(fontSize: 18),
-              )),
+              ...integrantes.map(
+                (nombre) => Text(nombre, style: TextStyle(fontSize: 18)),
+              ),
               SizedBox(height: 32),
               Text(
                 'Fecha y Hora:',
@@ -94,12 +93,13 @@ class MenuLateral extends StatelessWidget {
         children: <Widget>[
           const DrawerHeader(
             decoration: BoxDecoration(
-                color: Colors.blue,
-                image: DecorationImage(
-                    fit: BoxFit.fitWidth,
-                    image: AssetImage('assets/imagenes/logo-iujo.png'),
-                ),
-            ), child: Text(
+              color: Colors.blue,
+              image: DecorationImage(
+                fit: BoxFit.fitWidth,
+                image: AssetImage('assets/imagenes/logo-iujo.png'),
+              ),
+            ),
+            child: Text(
               '...::: Menu Lateral :::...',
               style: TextStyle(color: Colors.white, fontSize: 14),
             ),
@@ -112,14 +112,14 @@ class MenuLateral extends StatelessWidget {
               Navigator.pushNamed(context, '/');
             },
           ),
-          // ListTile(
-          //   leading: Icon(Icons.calculate),
-          //   title: Text('Calculadora'),
-          //   onTap: () {
-          //     Navigator.of(context).pop();
-          //     Navigator.pushNamed(context, '/calculadora');
-          //   },
-          // ),
+          ListTile(
+            leading: Icon(Icons.directions_bus),
+            title: const Text('Unidades'),
+            onTap: () {
+              Navigator.of(context).pop();
+              Navigator.pushNamed(context, '/unidades');
+            },
+          ),
           // ListTile(
           //   leading: Icon(Icons.assignment),
           //   title: Text('Formulario'),
@@ -148,70 +148,74 @@ class MenuLateral extends StatelessWidget {
 
 abstract class DialogoSalir {
   static alert(
-      BuildContext context, {
-        required String title,
-        required String description,
-        required String icono,
-      }) {
+    BuildContext context, {
+    required String title,
+    required String description,
+    required String icono,
+  }) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: Colors.white,
-        contentPadding: EdgeInsets.zero,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(20.0))),
-        content: ClipRRect(
-          borderRadius: BorderRadius.circular(20.0),
-          child: SizedBox(
-            height: 120,
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                Column(
-                  children: [
-                    SizedBox(height: 20.0),
-                    Image.asset(
-                      'assets/imagenes/icon_question.png',
-                      width: 50,
-                      height: 50,
-                      fit: BoxFit.contain,
+      builder:
+          (_) => AlertDialog(
+            backgroundColor: Colors.white,
+            contentPadding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(Radius.circular(20.0)),
+            ),
+            content: ClipRRect(
+              borderRadius: BorderRadius.circular(20.0),
+              child: SizedBox(
+                height: 120,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    Column(
+                      children: [
+                        SizedBox(height: 20.0),
+                        Image.asset(
+                          'assets/imagenes/icon_question.png',
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.contain,
+                        ),
+                        SizedBox(height: 25.0),
+                        Text(description),
+                      ],
                     ),
-                    SizedBox(height: 25.0),
-                    Text(description),
                   ],
                 ),
-              ],
+              ),
             ),
+            actions: [
+              MaterialButton(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                ),
+                minWidth: 100.0,
+                height: 30.0,
+                onPressed: () {
+                  Navigator.of(context).pop(); // Cierra el Drawer o el diálogo
+                  exit(0);
+                },
+                color: Colors.blueGrey,
+                child: Text('Si', style: TextStyle(color: Colors.white)),
+              ),
+              SizedBox(width: 10.0),
+              MaterialButton(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(Radius.circular(12.0)),
+                ),
+                minWidth: 100.0,
+                height: 30.0,
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                color: Colors.blue,
+                child: Text('No', style: TextStyle(color: Colors.white)),
+              ),
+              SizedBox(width: 10.0),
+            ],
           ),
-        ),
-        actions: [
-          MaterialButton(
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12.0))),
-            minWidth: 100.0,
-            height: 30.0,
-            onPressed: () {
-              Navigator.of(context).pop(); // Cierra el Drawer o el diálogo
-              exit(0);
-            },
-            color: Colors.blueGrey,
-            child: Text('Si', style: TextStyle(color: Colors.white)),
-          ),
-          SizedBox(width: 10.0),
-          MaterialButton(
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.all(Radius.circular(12.0))),
-            minWidth: 100.0,
-            height: 30.0,
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-            color: Colors.blue,
-            child: Text('No', style: TextStyle(color: Colors.white)),
-          ),
-          SizedBox(width: 10.0),
-        ],
-      ),
     );
   }
 }

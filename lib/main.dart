@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:unidades_manager/src/home.dart';
-//import 'package:unidades_manager/src/.dart';
+import 'package:unidades_manager/src/unidades_list.dart';
 //import 'package:unidades_manager/src/.dart';
 
 
@@ -19,7 +19,7 @@ class MainApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const Home(),
-        //'/': (context) => const (title: ''),
+        '/unidades': (context) => const UnidadesList(),
         //'/': (context) => const (title: ''),
       },
     );
