@@ -123,10 +123,10 @@ class MenuLateral extends StatelessWidget {
             title: Text('Captura de Imagen'),
             onTap: () {
               Navigator.of(context).pop();
-              Navigator.pushNamed(context, '/Imagen');
+              Navigator.pushNamed(context, '/imagen');
             },
           ),
-                    ListTile(
+          ListTile(
             leading: Icon(Icons.settings),
             title: Text('Configuración'),
             onTap: () {
