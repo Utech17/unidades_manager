@@ -2,9 +2,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:unidades_manager/src/home.dart';
+import 'package:unidades_manager/src/unidades_list.dart';
+import 'package:unidades_manager/core/app_colors.dart';
 //import 'package:unidades_manager/src/.dart';
-//import 'package:unidades_manager/src/.dart';
-
 
 void main() {
   runApp(const MainApp());
@@ -16,10 +16,16 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppTextColors.inverseText,
+        ),
+      ),
       initialRoute: '/',
       routes: {
         '/': (context) => const Home(),
-        //'/': (context) => const (title: ''),
+        '/unidades': (context) => const UnidadesList(),
         //'/': (context) => const (title: ''),
       },
     );

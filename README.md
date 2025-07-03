@@ -15,5 +15,7 @@ Asegúrate de tener [Flutter](https://flutter.dev/docs/get-started/install) inst
 
 1. Instala las dependencias:
 - flutter pub get
-2. Ejecuta la aplicación en tu dispositivo o emulador:
+2. Para crear carpetas del proyecto, para correrlas en las plataformas (web, windows, linux, etc).
+flutter create .
+3. Ejecuta la aplicación en tu dispositivo o emulador:
 - flutter run
