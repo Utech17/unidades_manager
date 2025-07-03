@@ -22,7 +22,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
   Future<void> _loadUrl() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _savedUrl = prefs.getString('server_url') ?? 'http://192.168.1.64:3000/api/v1/';
+      _savedUrl =
+          prefs.getString('server_url') ??
+          'https://api-unidades-manager.onrender.com/api/v1/units/';
       _controller.text = _savedUrl!;
     });
   }
@@ -78,8 +80,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
               ),
               if (_savedUrl != null) ...[
                 SizedBox(height: 24),
-                Text('Actual: $_savedUrl', style: TextStyle(color: Colors.grey[700])),
-              ]
+                Text(
+                  'Actual: $_savedUrl',
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ],
             ],
           ),
         ),
