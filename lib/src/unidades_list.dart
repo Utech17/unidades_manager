@@ -18,7 +18,6 @@ class _UnidadesListState extends State<UnidadesList> {
   ];
   final List<String> _tipos = ['Buseta', 'Por Puestos'];
 
-  // Controladores para el formulario
   final _formKey = GlobalKey<FormState>();
   final _placaController = TextEditingController();
   final _descripcionController = TextEditingController();
@@ -28,7 +27,7 @@ class _UnidadesListState extends State<UnidadesList> {
   final _anioController = TextEditingController();
   final _descripcionModeloController = TextEditingController();
 
-  // Variables para controlar edición
+  String _textoBuscar = '';
   int? _unidadEditandoIndex;
   bool _cargando = false;
 
@@ -38,10 +37,8 @@ class _UnidadesListState extends State<UnidadesList> {
     _cargarUnidadesIniciales();
   }
 
-  // Simular carga inicial de datos (reemplazar con API luego)
   void _cargarUnidadesIniciales() async {
     setState(() => _cargando = true);
-    // TODO: Reemplazar con llamada a API
     await Future.delayed(const Duration(seconds: 1));
     setState(() {
       _unidades = [
@@ -108,11 +105,11 @@ class _UnidadesListState extends State<UnidadesList> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    soloConsulta 
-                      ? 'Detalles de la Unidad'
-                      : _unidadEditandoIndex != null 
-                        ? 'Editar Unidad' 
-                        : 'Nueva Unidad',
+                    soloConsulta
+                        ? 'Detalles de la Unidad'
+                        : _unidadEditandoIndex != null
+                            ? 'Editar Unidad'
+                            : 'Nueva Unidad',
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -169,11 +166,8 @@ class _UnidadesListState extends State<UnidadesList> {
                   TextFormField(
                     controller: _descripcionModeloController,
                     decoration: InputDecoration(
-                      labelText: 'Descripción del ${_modeloSeleccionado}',
+                      labelText: 'Descripción del $_modeloSeleccionado',
                       border: const OutlineInputBorder(),
-                      hintText: soloConsulta
-                          ? null
-                          : 'Ingrese detalles específicos de este modelo',
                     ),
                     maxLines: 2,
                     readOnly: soloConsulta,
@@ -289,25 +283,20 @@ class _UnidadesListState extends State<UnidadesList> {
     };
 
     setState(() => _cargando = true);
-    
+
     try {
       if (_unidadEditandoIndex != null) {
-        // Actualizar unidad existente
-        // TODO: Reemplazar con llamada a API
         await Future.delayed(const Duration(seconds: 1));
         setState(() {
           _unidades[_unidadEditandoIndex!] = nuevaUnidad;
         });
       } else {
-        // Agregar nueva unidad
-        // TODO: Reemplazar con llamada a API
         await Future.delayed(const Duration(seconds: 1));
         setState(() {
           _unidades.add(nuevaUnidad);
         });
       }
     } catch (e) {
-      // TODO: Manejar errores de API
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -340,7 +329,6 @@ class _UnidadesListState extends State<UnidadesList> {
     if (confirmado == true) {
       setState(() => _cargando = true);
       try {
-        // TODO: Reemplazar con llamada a API
         await Future.delayed(const Duration(seconds: 1));
         setState(() {
           _unidades.removeAt(index);
@@ -367,6 +355,14 @@ class _UnidadesListState extends State<UnidadesList> {
     _unidadEditandoIndex = null;
   }
 
+  List<Map<String, dynamic>> _filtrarUnidades() {
+    return _unidades.where((unidad) {
+      return unidad['placa'].toLowerCase().contains(_textoBuscar.toLowerCase()) ||
+             unidad['modelo'].toLowerCase().contains(_textoBuscar.toLowerCase()) ||
+             unidad['tipo'].toLowerCase().contains(_textoBuscar.toLowerCase());
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -377,100 +373,107 @@ class _UnidadesListState extends State<UnidadesList> {
       ),
       body: _cargando
           ? const Center(child: CircularProgressIndicator())
-          : _unidades.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.directions_bus, size: 60, color: AppColors.secondary),
-                      const SizedBox(height: 20),
-                      Text(
-                        'No hay unidades registradas',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: AppTextColors.secondaryText,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Presione el botón + para agregar una nueva',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTextColors.disabledText,
-                        ),
-                      ),
-                    ],
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Buscar unidad',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (text) {
+                      setState(() {
+                        _textoBuscar = text;
+                      });
+                    },
                   ),
-                )
-              : ListView.builder(
-                  itemCount: _unidades.length,
-                  itemBuilder: (context, index) {
-                    final unidad = _unidades[index];
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      child: InkWell(
-                        onTap: () {
-                          _mostrarFormulario(unidad: unidad, soloConsulta: true, index: index);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.directions_bus, color: AppColors.primary),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(unidad['placa'], 
-                                        style: const TextStyle(fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 4),
-                                    Text('${unidad['modelo']} - ${unidad['tipo']}'),
-                                    if (unidad['descripcionModelo'] != null && 
-                                        unidad['descripcionModelo'].isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4.0),
-                                        child: Text(
-                                          unidad['descripcionModelo'],
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
+                ),
+                Expanded(
+                  child: _filtrarUnidades().isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Icon(Icons.directions_bus, size: 60, color: AppColors.secondary),
+                              SizedBox(height: 20),
+                              Text(
+                                'Unidad no registrada',
+                                style: TextStyle(fontSize: 18, color: AppTextColors.secondaryText),
                               ),
-                              Text('${unidad['puestos']} puestos'),
-                              PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert),
-                                itemBuilder: (BuildContext context) {
-                                  return [
-                                    const PopupMenuItem<String>(
-                                      value: 'modificar',
-                                      child: Text('Modificar'),
-                                    ),
-                                    const PopupMenuItem<String>(
-                                      value: 'eliminar',
-                                      child: Text('Eliminar', style: TextStyle(color: Colors.red)),
-                                    ),
-                                  ];
-                                },
-                                onSelected: (String value) {
-                                  if (value == 'modificar') {
-                                    _mostrarFormulario(unidad: unidad, index: index);
-                                  } else if (value == 'eliminar') {
-                                    _eliminarUnidad(index);
-                                  }
-                                },
+                              SizedBox(height: 10),
+                              Text(
+                                'Verifique la información ingresada',
+                                style: TextStyle(fontSize: 14, color: AppTextColors.disabledText),
                               ),
                             ],
                           ),
+                        )
+                      : ListView.builder(
+                          itemCount: _filtrarUnidades().length,
+                          itemBuilder: (context, index) {
+                            final unidad = _filtrarUnidades()[index];
+                            return Card(
+                              margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              child: InkWell(
+                                onTap: () {
+                                  _mostrarFormulario(unidad: unidad, soloConsulta: true, index: index);
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.directions_bus, color: AppColors.primary),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(unidad['placa'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                            const SizedBox(height: 4),
+                                            Text('${unidad['modelo']} - ${unidad['tipo']}'),
+                                            if (unidad['descripcionModelo'] != null && unidad['descripcionModelo'].isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 4.0),
+                                                child: Text(
+                                                  unidad['descripcionModelo'],
+                                                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text('${unidad['puestos']} puestos'),
+                                      PopupMenuButton<String>(
+                                        icon: const Icon(Icons.more_vert),
+                                        itemBuilder: (BuildContext context) => [
+                                          const PopupMenuItem<String>(
+                                            value: 'modificar',
+                                            child: Text('Modificar'),
+                                          ),
+                                          const PopupMenuItem<String>(
+                                            value: 'eliminar',
+                                            child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                          ),
+                                        ],
+                                        onSelected: (String value) {
+                                          if (value == 'modificar') {
+                                            _mostrarFormulario(unidad: unidad, index: index);
+                                          } else if (value == 'eliminar') {
+                                            _eliminarUnidad(index);
+                                          }
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                      ),
-                    );
-                  },
                 ),
+              ],
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _mostrarFormulario(),
         backgroundColor: AppColors.primary,
@@ -479,7 +482,7 @@ class _UnidadesListState extends State<UnidadesList> {
       ),
     );
   }
-}
+} 
 
 // TODO: Implementar estas funciones cuando tengas la API
 /*
