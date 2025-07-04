@@ -23,6 +23,8 @@ class _UnidadesListState extends State<UnidadesList> {
   String _tipoSeleccionado = 'Buseta';
   final _anioController = TextEditingController();
   final _descripcionModeloController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _unidadesFiltradas = [];
 
   int? _indiceEdicion;
   String? _serverUrl;
@@ -74,6 +76,7 @@ class _UnidadesListState extends State<UnidadesList> {
               'tipo': unidad['type'] ?? '',
               'anio': unidad['year'] ?? 0,
             });
+            _unidadesFiltradas = List.from(_unidades);
             if (modelCode.isNotEmpty) {
               modelosApi.add(modelCode);
               descripcionesModelosApi[modelCode] = modelDesc;
@@ -89,6 +92,17 @@ class _UnidadesListState extends State<UnidadesList> {
       developer.log('Error de red al obtener unidades: $e', name: 'api_error');
     }
   }
+  void _filtrarUnidades(String query) {
+  setState(() {
+    _unidadesFiltradas = _unidades.where((unidad) {
+      final placa = unidad['placa']?.toLowerCase() ?? '';
+      final modelo = unidad['modelo']?.toLowerCase() ?? '';
+      final descModelo = unidad['descripcionModelo']?.toLowerCase() ?? '';
+      final filtro = query.toLowerCase();
+      return placa.contains(filtro) || modelo.contains(filtro) || descModelo.contains(filtro);
+    }).toList();
+  });
+}
 
   Future<void> _fetchModelosApi() async {
     if (_serverUrl == null) return;
@@ -148,6 +162,7 @@ class _UnidadesListState extends State<UnidadesList> {
     _puestosController.dispose();
     _anioController.dispose();
     _descripcionModeloController.dispose();
+     _searchController.dispose();
     super.dispose();
   }
 
@@ -375,24 +390,50 @@ class _UnidadesListState extends State<UnidadesList> {
     );
   }
 
-  void _agregarUnidad() async {
-    setState(() {
-      _unidades.add({
-        'placa': _placaController.text,
-        'descripcion': _descripcionController.text,
-        'modelCode': _modeloSeleccionadoApi,
-        'puestos': int.parse(_puestosController.text),
-        'tipo': _tipoSeleccionado,
-        'anio': int.parse(_anioController.text),
-      });
-    });
-    // Aquí deberías hacer la petición POST a la API si corresponde
-    await _fetchUnidades();
-    _placaController.clear();
-    _descripcionController.clear();
-    _puestosController.clear();
-    _anioController.clear();
+void _agregarUnidad() async {
+  if (_serverUrl == null) return;
+  final nuevaUnidad = {
+    'plate': _placaController.text,
+    'description': _descripcionController.text,
+    'modelCode': _modeloSeleccionadoApi,
+    'seatCount': int.parse(_puestosController.text),
+    'type': _tipoSeleccionado,
+    'year': int.parse(_anioController.text),
+  };
+  final url = Uri.parse('$_serverUrl''units');
+  try {
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(nuevaUnidad),
+    );
+    developer.log('POST URL: $url', name: 'api_post');
+    developer.log('JSON enviado: ${json.encode(nuevaUnidad)}', name: 'api_post');
+    developer.log('Status: ${response.statusCode}', name: 'api_post');
+    developer.log('Respuesta: ${response.body}', name: 'api_post');
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      await _fetchUnidades();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unidad agregada correctamente.')),
+      );
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al agregar: ${response.statusCode}')),
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error de red al agregar: $e')),
+    );
   }
+  _placaController.clear();
+  _descripcionController.clear();
+  _puestosController.clear();
+  _anioController.clear();
+}
 
   void _actualizarUnidad() async {
     if (_indiceEdicion != null) {
@@ -451,120 +492,130 @@ class _UnidadesListState extends State<UnidadesList> {
         foregroundColor: AppTextColors.inverseText,
       ),
       body: _cargando
-          ? const Center(child: CircularProgressIndicator())
-          : _unidades.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.directions_bus,
-                        size: 60,
-                        color: AppColors.secondary,
-                      ),
-                      const SizedBox(height: 20),
-                      Text(
-                        'No hay unidades registradas',
-                        style: TextStyle(
-                          fontSize: 18,
-                          color: AppTextColors.secondaryText,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Presione el botón + para agregar una nueva',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTextColors.disabledText,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: _unidades.length,
-                  itemBuilder: (context, index) {
-                    final unidad = _unidades[index];
-                    final descripcionModelo = _modelosApi.firstWhere(
-                      (m) => m['modelCode'] == unidad['modelo'],
-                      orElse: () => {'description': ''},
-                    )['description'] ?? '';
-                    return Card(
-                      margin: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      child: InkWell(
-                        onTap: () {
-                          _mostrarFormulario(unidad: unidad, soloConsulta: true);
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Row(
+    ? const Center(child: CircularProgressIndicator())
+    : Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: _searchController,
+              onChanged: _filtrarUnidades,
+              decoration: const InputDecoration(
+                labelText: 'Buscar por placa o modelo',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.search),
+              ),
+            ),
+          ),
+          Expanded(
+            child: _unidadesFiltradas.isEmpty
+                ? Center(
+                    child: _unidades.isEmpty
+                        ? Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Icon(
                                 Icons.directions_bus,
-                                color: AppColors.primary,
+                                size: 60,
+                                color: AppColors.secondary,
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      unidad['placa'],
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${unidad['modelo']} - ${unidad['tipo']}',
-                                    ),
-                                    if (descripcionModelo.isNotEmpty)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 4.0),
-                                        child: Text(
-                                          descripcionModelo,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                      ),
-                                  ],
+                              const SizedBox(height: 20),
+                              Text(
+                                'No hay unidades registradas',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: AppTextColors.secondaryText,
                                 ),
                               ),
-                              Text('${unidad['puestos']} puestos'),
-                              PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert),
-                                itemBuilder: (BuildContext context) {
-                                  return [
-                                    const PopupMenuItem<String>(
-                                      value: 'modificar',
-                                      child: Text('Modificar'),
-                                    ),
-                                    const PopupMenuItem<String>(
-                                      value: 'eliminar',
-                                      child: Text('Eliminar'),
-                                    ),
-                                  ];
-                                },
-                                onSelected: (String value) {
-                                  if (value == 'modificar') {
-                                    _mostrarFormulario(unidad: unidad);
-                                  } else if (value == 'eliminar') {
-                                    _eliminarUnidadApi(unidad['placa'], index);
-                                          }
-                                },
+                              const SizedBox(height: 10),
+                              Text(
+                                'Presione el botón + para agregar una nueva',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: AppTextColors.disabledText,
+                                ),
                               ),
                             ],
+                          )
+                        : Text(
+                            'No hay resultados',
+                            style: TextStyle(color: AppTextColors.disabledText),
+                          ),
+                  )
+                : ListView.builder(
+                    itemCount: _unidadesFiltradas.length,
+                    itemBuilder: (context, index) {
+                      final unidad = _unidadesFiltradas[index];
+                      final descripcionModelo = _modelosApi.firstWhere(
+                        (m) => m['modelCode'] == unidad['modelo'],
+                        orElse: () => {'description': ''},
+                      )['description'] ?? '';
+                      return Card(
+                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        child: InkWell(
+                          onTap: () {
+                            _mostrarFormulario(unidad: unidad, soloConsulta: true);
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.directions_bus, color: AppColors.primary),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        unidad['placa'],
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text('${unidad['modelo']} - ${unidad['tipo']}'),
+                                      if (descripcionModelo.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 4.0),
+                                          child: Text(
+                                            descripcionModelo,
+                                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                Text('${unidad['puestos']} puestos'),
+                                PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert),
+                                  itemBuilder: (BuildContext context) {
+                                    return [
+                                      const PopupMenuItem<String>(
+                                        value: 'modificar',
+                                        child: Text('Modificar'),
+                                      ),
+                                      const PopupMenuItem<String>(
+                                        value: 'eliminar',
+                                        child: Text('Eliminar'),
+                                      ),
+                                    ];
+                                  },
+                                  onSelected: (String value) {
+                                    if (value == 'modificar') {
+                                      _mostrarFormulario(unidad: unidad);
+                                    } else if (value == 'eliminar') {
+                                      _eliminarUnidadApi(unidad['placa'], index);
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _mostrarFormulario(),
         backgroundColor: AppColors.primary,
