@@ -390,24 +390,50 @@ class _UnidadesListState extends State<UnidadesList> {
     );
   }
 
-  void _agregarUnidad() async {
-    setState(() {
-      _unidades.add({
-        'placa': _placaController.text,
-        'descripcion': _descripcionController.text,
-        'modelCode': _modeloSeleccionadoApi,
-        'puestos': int.parse(_puestosController.text),
-        'tipo': _tipoSeleccionado,
-        'anio': int.parse(_anioController.text),
-      });
-    });
-    // Aquí deberías hacer la petición POST a la API si corresponde
-    await _fetchUnidades();
-    _placaController.clear();
-    _descripcionController.clear();
-    _puestosController.clear();
-    _anioController.clear();
+void _agregarUnidad() async {
+  if (_serverUrl == null) return;
+  final nuevaUnidad = {
+    'plate': _placaController.text,
+    'description': _descripcionController.text,
+    'modelCode': _modeloSeleccionadoApi,
+    'seatCount': int.parse(_puestosController.text),
+    'type': _tipoSeleccionado,
+    'year': int.parse(_anioController.text),
+  };
+  final url = Uri.parse('$_serverUrl''units');
+  try {
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode(nuevaUnidad),
+    );
+    developer.log('POST URL: $url', name: 'api_post');
+    developer.log('JSON enviado: ${json.encode(nuevaUnidad)}', name: 'api_post');
+    developer.log('Status: ${response.statusCode}', name: 'api_post');
+    developer.log('Respuesta: ${response.body}', name: 'api_post');
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      await _fetchUnidades();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unidad agregada correctamente.')),
+      );
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al agregar: ${response.statusCode}')),
+      );
+    }
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error de red al agregar: $e')),
+    );
   }
+  _placaController.clear();
+  _descripcionController.clear();
+  _puestosController.clear();
+  _anioController.clear();
+}
 
   void _actualizarUnidad() async {
     if (_indiceEdicion != null) {
