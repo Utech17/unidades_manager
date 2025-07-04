@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:unidades_manager/core/app_colors.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:unidades_manager/core/validators.dart';
 
 class UnidadesList extends StatefulWidget {
   const UnidadesList({super.key});
@@ -44,6 +44,7 @@ class _UnidadesListState extends State<UnidadesList> {
   Future<void> _inicializarPantalla() async {
     setState(() => _cargando = true);
     await _loadServerUrl();
+    await _fetchModelosApi();
     await _fetchUnidades();
     setState(() => _cargando = false);
   }
@@ -56,7 +57,10 @@ class _UnidadesListState extends State<UnidadesList> {
   Future<void> _fetchUnidades() async {
     if (_serverUrl == null) return;
     try {
-      final url = Uri.parse('$_serverUrl''units');
+      final url = Uri.parse(
+        '$_serverUrl'
+        'units',
+      );
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -66,7 +70,10 @@ class _UnidadesListState extends State<UnidadesList> {
           _unidades.clear();
           for (var unidad in data) {
             final modelCode = unidad['modelCode'] ?? '';
-            final modelDesc = unidad['model'] != null ? unidad['model']['description'] ?? '' : '';
+            final modelDesc =
+                unidad['model'] != null
+                    ? unidad['model']['description'] ?? ''
+                    : '';
             _unidades.add({
               'placa': unidad['plate'] ?? '',
               'descripcion': unidad['description'] ?? '',
@@ -82,14 +89,10 @@ class _UnidadesListState extends State<UnidadesList> {
               descripcionesModelosApi[modelCode] = modelDesc;
             }
           }
-          // Solo los modelos de la API
-          // Guardar descripciones de modelos
         });
-      } else {
-        developer.log('Error al obtener unidades: \\${response.statusCode}', name: 'api_error');
       }
-    } catch (e) {
-      developer.log('Error de red al obtener unidades: $e', name: 'api_error');
+    } catch (e, stack) {
+      print('Error en _fetchUnidades: $e\n$stack');
     }
   }
   void _filtrarUnidades(String query) {
@@ -107,21 +110,27 @@ class _UnidadesListState extends State<UnidadesList> {
   Future<void> _fetchModelosApi() async {
     if (_serverUrl == null) return;
     try {
-      final url = Uri.parse('$_serverUrl''models');
+      // Asegurar que la URL termine con /
+      String baseUrl = _serverUrl!;
+      if (!baseUrl.endsWith('/')) baseUrl += '/';
+      final url = Uri.parse('${baseUrl}models');
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
         setState(() {
-          _modelosApi = data.map<Map<String, dynamic>>((m) => {
-            'modelCode': m['modelCode'],
-            'description': m['description'] ?? '',
-          }).toList();
+          _modelosApi =
+              data
+                  .map<Map<String, dynamic>>(
+                    (m) => {
+                      'modelCode': m['modelCode'] ?? '',
+                      'description': m['description'] ?? '',
+                    },
+                  )
+                  .toList();
         });
-      } else {
-        developer.log('Error al obtener modelos: \\${response.statusCode}', name: 'api_error');
       }
-    } catch (e) {
-      developer.log('Error de red al obtener modelos: $e', name: 'api_error');
+    } catch (e, stack) {
+      print('Error en _fetchModelosApi: $e\n$stack');
     }
   }
 
@@ -129,8 +138,10 @@ class _UnidadesListState extends State<UnidadesList> {
     if (_serverUrl == null) return;
     try {
       final cleanPlate = plate.trim();
-      final url = Uri.parse('$_serverUrl''units/$cleanPlate');
-      developer.log('DELETE URL: $url', name: 'api_delete');
+      final url = Uri.parse(
+        '$_serverUrl'
+        'units/$cleanPlate',
+      );
       final response = await http.delete(
         url,
         headers: {'Content-Type': 'application/json'},
@@ -144,14 +155,17 @@ class _UnidadesListState extends State<UnidadesList> {
       } else {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al eliminar: \\${response.statusCode}')),
+          SnackBar(
+            content: Text('Error al eliminar: \\${response.statusCode}'),
+          ),
         );
       }
-    } catch (e) {
+    } catch (e, stack) {
+      print('Error en _eliminarUnidadApi: $e\n$stack');
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error de red al eliminar: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error de red al eliminar: $e')));
     }
   }
 
@@ -170,24 +184,35 @@ class _UnidadesListState extends State<UnidadesList> {
     Map<String, dynamic>? unidad,
     bool soloConsulta = false,
   }) async {
+    // Cargar modelos ANTES de abrir el modal
     await _fetchModelosApi();
+
+    // Configurar valores después de cargar
     if (_modelosApi.isNotEmpty) {
       if (unidad != null) {
+        // usar el modelo que ya está registrado
         _modeloSeleccionadoApi = unidad['modelo'];
       } else {
-        _modeloSeleccionadoApi = _modelosApi.first['modelCode'];
+        // dejar nulo para que muestre 'Seleccione un modelo'
+        _modeloSeleccionadoApi = null;
       }
-      _descripcionModeloSeleccionado = _modelosApi.firstWhere(
-        (m) => m['modelCode'] == _modeloSeleccionadoApi,
-        orElse: () => {'description': ''},
-      )['description'] ?? '';
+      // Obtener la descripción del modelo seleccionado
+      _descripcionModeloSeleccionado =
+          _modelosApi.firstWhere(
+            (m) => m['modelCode'] == _modeloSeleccionadoApi,
+            orElse: () => {'description': ''},
+          )['description'] ??
+          '';
+      _descripcionModeloController.text = _descripcionModeloSeleccionado;
     }
-    // ...resto de la lógica de asignación de controladores...
+
+    // Configurar controladores
     if (unidad != null) {
       _placaController.text = unidad['placa'];
       _descripcionController.text = unidad['descripcion'];
       _puestosController.text = unidad['puestos'].toString();
-      _tipoSeleccionado = _tipos.contains(unidad['tipo']) ? unidad['tipo'] : _tipos.first;
+      _tipoSeleccionado =
+          _tipos.contains(unidad['tipo']) ? unidad['tipo'] : _tipos.first;
       _anioController.text = unidad['anio'].toString();
       _indiceEdicion = _unidades.indexOf(unidad);
     } else {
@@ -197,6 +222,8 @@ class _UnidadesListState extends State<UnidadesList> {
       _puestosController.clear();
       _anioController.clear();
     }
+
+    // abrir el modal
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -229,12 +256,9 @@ class _UnidadesListState extends State<UnidadesList> {
                       border: OutlineInputBorder(),
                     ),
                     readOnly: soloConsulta,
-                    validator: (value) {
-                      if (!soloConsulta && (value == null || value.isEmpty)) {
-                        return 'Por favor ingrese la placa';
-                      }
-                      return null;
-                    },
+                    validator:
+                        (value) =>
+                            validatePlaca(value, soloConsulta: soloConsulta),
                   ),
                   const SizedBox(height: 15),
                   TextFormField(
@@ -249,31 +273,45 @@ class _UnidadesListState extends State<UnidadesList> {
                   const SizedBox(height: 15),
                   DropdownButtonFormField<String>(
                     value: _modeloSeleccionadoApi,
-                    items: _modelosApi.map<DropdownMenuItem<String>>((modelo) {
-                      return DropdownMenuItem<String>(
-                        value: modelo['modelCode'] as String,
-                        child: Text('${modelo['modelCode']}'),
-                      );
-                    }).toList(),
-                    onChanged: soloConsulta
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _modeloSeleccionadoApi = value;
-                              _descripcionModeloSeleccionado = _modelosApi.firstWhere(
-                                (m) => m['modelCode'] == value,
-                                orElse: () => {'description': ''},
-                              )['description'] ?? '';
-                            });
-                          },
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: null,
+                        child: Text('Seleccione un modelo'),
+                      ),
+                      ..._modelosApi.map<DropdownMenuItem<String>>((modelo) {
+                        return DropdownMenuItem<String>(
+                          value: modelo['modelCode'] as String,
+                          child: Text(
+                            '${modelo['modelCode']} - ${modelo['description']}',
+                          ),
+                        );
+                      }).toList(),
+                    ],
+                    onChanged:
+                        soloConsulta
+                            ? null
+                            : (value) {
+                              setState(() {
+                                _modeloSeleccionadoApi = value;
+                                _descripcionModeloSeleccionado =
+                                    _modelosApi.firstWhere(
+                                      (m) => m['modelCode'] == value,
+                                      orElse: () => {'description': ''},
+                                    )['description'] ??
+                                    '';
+                                _descripcionModeloController.text =
+                                    _descripcionModeloSeleccionado;
+                              });
+                            },
                     decoration: const InputDecoration(
                       labelText: 'Modelo',
                       border: OutlineInputBorder(),
                     ),
+                    validator: validateModeloSeleccionado,
                   ),
                   const SizedBox(height: 15),
                   TextFormField(
-                    initialValue: _descripcionModeloSeleccionado,
+                    controller: _descripcionModeloController,
                     decoration: const InputDecoration(
                       labelText: 'Descripción del modelo',
                       border: OutlineInputBorder(),
@@ -290,15 +328,9 @@ class _UnidadesListState extends State<UnidadesList> {
                     ),
                     keyboardType: TextInputType.number,
                     readOnly: soloConsulta,
-                    validator: (value) {
-                      if (!soloConsulta && (value == null || value.isEmpty)) {
-                        return 'Por favor ingrese la cantidad';
-                      }
-                      if (!soloConsulta && int.tryParse(value!) == null) {
-                        return 'Ingrese un número válido';
-                      }
-                      return null;
-                    },
+                    validator:
+                        (value) =>
+                            validatePuestos(value, soloConsulta: soloConsulta),
                   ),
                   const SizedBox(height: 15),
                   DropdownButtonFormField<String>(
@@ -332,15 +364,9 @@ class _UnidadesListState extends State<UnidadesList> {
                     ),
                     keyboardType: TextInputType.number,
                     readOnly: soloConsulta,
-                    validator: (value) {
-                      if (!soloConsulta && (value == null || value.isEmpty)) {
-                        return 'Por favor ingrese el año';
-                      }
-                      if (!soloConsulta && int.tryParse(value!) == null) {
-                        return 'Ingrese un año válido';
-                      }
-                      return null;
-                    },
+                    validator:
+                        (value) =>
+                            validateAnio(value, soloConsulta: soloConsulta),
                   ),
                   if (!soloConsulta) ...[
                     const SizedBox(height: 20),
@@ -446,17 +472,16 @@ void _agregarUnidad() async {
         'year': int.parse(_anioController.text),
       };
       final plate = _placaController.text;
-      final url = Uri.parse('$_serverUrl''units/$plate');
+      final url = Uri.parse(
+        '$_serverUrl'
+        'units/$plate',
+      );
       try {
-        developer.log(json.encode(unidadEditada), name: 'unidad_editada');
-        developer.log(url.toString(), name: 'url_api');
         final response = await http.put(
           url,
           headers: {'Content-Type': 'application/json'},
           body: json.encode(unidadEditada),
         );
-        developer.log('Status: \\${response.statusCode}', name: 'api_status');
-        developer.log('Body: \\${response.body}', name: 'api_body');
         if (response.statusCode == 200 || response.statusCode == 204) {
           await _fetchUnidades();
         } else {
@@ -491,131 +516,124 @@ void _agregarUnidad() async {
         backgroundColor: AppColors.primary,
         foregroundColor: AppTextColors.inverseText,
       ),
-      body: _cargando
-    ? const Center(child: CircularProgressIndicator())
-    : Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _filtrarUnidades,
-              decoration: const InputDecoration(
-                labelText: 'Buscar por placa o modelo',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.search),
-              ),
-            ),
-          ),
-          Expanded(
-            child: _unidadesFiltradas.isEmpty
-                ? Center(
-                    child: _unidades.isEmpty
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.directions_bus,
-                                size: 60,
-                                color: AppColors.secondary,
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                'No hay unidades registradas',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: AppTextColors.secondaryText,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Presione el botón + para agregar una nueva',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppTextColors.disabledText,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Text(
-                            'No hay resultados',
-                            style: TextStyle(color: AppTextColors.disabledText),
-                          ),
-                  )
-                : ListView.builder(
-                    itemCount: _unidadesFiltradas.length,
-                    itemBuilder: (context, index) {
-                      final unidad = _unidadesFiltradas[index];
-                      final descripcionModelo = _modelosApi.firstWhere(
+      body:
+          _cargando
+              ? const Center(child: CircularProgressIndicator())
+              : _unidades.isEmpty
+              ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.directions_bus,
+                      size: 60,
+                      color: AppColors.secondary,
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      'No hay unidades registradas',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: AppTextColors.secondaryText,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Presione el botón + para agregar una nueva',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppTextColors.disabledText,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+              : ListView.builder(
+                itemCount: _unidades.length,
+                itemBuilder: (context, index) {
+                  final unidad = _unidades[index];
+                  final descripcionModelo =
+                      _modelosApi.firstWhere(
                         (m) => m['modelCode'] == unidad['modelo'],
                         orElse: () => {'description': ''},
-                      )['description'] ?? '';
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        child: InkWell(
-                          onTap: () {
-                            _mostrarFormulario(unidad: unidad, soloConsulta: true);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.directions_bus, color: AppColors.primary),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        unidad['placa'],
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text('${unidad['modelo']} - ${unidad['tipo']}'),
-                                      if (descripcionModelo.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4.0),
-                                          child: Text(
-                                            descripcionModelo,
-                                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Text('${unidad['puestos']} puestos'),
-                                PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert),
-                                  itemBuilder: (BuildContext context) {
-                                    return [
-                                      const PopupMenuItem<String>(
-                                        value: 'modificar',
-                                        child: Text('Modificar'),
-                                      ),
-                                      const PopupMenuItem<String>(
-                                        value: 'eliminar',
-                                        child: Text('Eliminar'),
-                                      ),
-                                    ];
-                                  },
-                                  onSelected: (String value) {
-                                    if (value == 'modificar') {
-                                      _mostrarFormulario(unidad: unidad);
-                                    } else if (value == 'eliminar') {
-                                      _eliminarUnidadApi(unidad['placa'], index);
-                                    }
-                                  },
-                                ),
-                              ],
+                      )['description'] ??
+                      '';
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    child: InkWell(
+                      onTap: () {
+                        _mostrarFormulario(unidad: unidad, soloConsulta: true);
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.directions_bus,
+                              color: AppColors.primary,
                             ),
-                          ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    unidad['placa'],
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${unidad['modelo']} - ${unidad['tipo']}',
+                                  ),
+                                  if (descripcionModelo.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4.0),
+                                      child: Text(
+                                        descripcionModelo,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            Text('${unidad['puestos']} puestos'),
+                            PopupMenuButton<String>(
+                              icon: const Icon(Icons.more_vert),
+                              itemBuilder: (BuildContext context) {
+                                return [
+                                  const PopupMenuItem<String>(
+                                    value: 'modificar',
+                                    child: Text('Modificar'),
+                                  ),
+                                  const PopupMenuItem<String>(
+                                    value: 'eliminar',
+                                    child: Text('Eliminar'),
+                                  ),
+                                ];
+                              },
+                              onSelected: (String value) {
+                                if (value == 'modificar') {
+                                  _mostrarFormulario(unidad: unidad);
+                                } else if (value == 'eliminar') {
+                                  _eliminarUnidadApi(unidad['placa'], index);
+                                }
+                              },
+                            ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+                      ),
+                    ),
+                  );
+                },
+              ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _mostrarFormulario(),
         backgroundColor: AppColors.primary,
