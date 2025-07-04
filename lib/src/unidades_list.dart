@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:unidades_manager/core/app_colors.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unidades_manager/core/validators.dart';
 
@@ -95,17 +96,6 @@ class _UnidadesListState extends State<UnidadesList> {
       print('Error en _fetchUnidades: $e\n$stack');
     }
   }
-  void _filtrarUnidades(String query) {
-  setState(() {
-    _unidadesFiltradas = _unidades.where((unidad) {
-      final placa = unidad['placa']?.toLowerCase() ?? '';
-      final modelo = unidad['modelo']?.toLowerCase() ?? '';
-      final descModelo = unidad['descripcionModelo']?.toLowerCase() ?? '';
-      final filtro = query.toLowerCase();
-      return placa.contains(filtro) || modelo.contains(filtro) || descModelo.contains(filtro);
-    }).toList();
-  });
-}
 
   Future<void> _fetchModelosApi() async {
     if (_serverUrl == null) return;
