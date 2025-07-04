@@ -144,44 +144,74 @@ class _UnidadesListState extends State<UnidadesList> {
     }
   }
 
-  Future<void> _eliminarUnidadApi(String plate, int index) async {
-    if (_serverUrl == null) return;
-    try {
-      final cleanPlate = plate.trim();
-      final url = Uri.parse(
-        '$_serverUrl'
-        'units/$cleanPlate',
-      );
-      final response = await http.delete(
-        url,
-        headers: {'Content-Type': 'application/json'},
-      );
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        await _fetchUnidades();
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unidad eliminada correctamente.')),
-        );
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al eliminar: \\${response.statusCode}'),
+Future<void> _eliminarUnidadApi(String plate, int index) async {
+  final confirmado = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Confirmar eliminación'),
+      content: Text(
+        '¿Está seguro que desea eliminar la unidad $plate?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text(
+            'Eliminar',
+            style: TextStyle(color: Colors.red),
           ),
-        );
-      }
-    } catch (e, stack) {
-      developer.log(
-        'Error en _eliminarUnidadApi: $e\n$stack',
-        name: 'api_error',
-      );
+        ),
+      ],
+    ),
+  );
+
+  if (confirmado != true) return;
+  
+  if (_serverUrl == null) return;
+  
+  setState(() => _cargando = true);
+  try {
+    final cleanPlate = plate.trim();
+    final url = Uri.parse(
+      '$_serverUrl'
+      'units/$cleanPlate',
+    );
+    final response = await http.delete(
+      url,
+      headers: {'Content-Type': 'application/json'},
+    );
+    
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      await _fetchUnidades();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error de red al eliminar: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unidad eliminada correctamente.')),
+      );
+    } else {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al eliminar: \\${response.statusCode}'),
+        ),
+      );
+    }
+  } catch (e, stack) {
+    developer.log(
+      'Error en _eliminarUnidadApi: $e\n$stack',
+      name: 'api_error',
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error de red al eliminar: $e')));
+  } finally {
+    if (mounted) {
+      setState(() => _cargando = false);
     }
   }
-
+}
   @override
   void dispose() {
     _placaController.dispose();
