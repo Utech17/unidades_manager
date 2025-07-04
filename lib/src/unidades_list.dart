@@ -58,7 +58,10 @@ class _UnidadesListState extends State<UnidadesList> {
   Future<void> _fetchUnidades() async {
     if (_serverUrl == null) return;
     try {
-      final url = Uri.parse('$_serverUrl''units');
+      final url = Uri.parse(
+        '$_serverUrl'
+        'units',
+      );
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
@@ -89,7 +92,10 @@ class _UnidadesListState extends State<UnidadesList> {
           _unidadesFiltradas = List.from(_unidades); // Inicializa filtradas
         });
       } else {
-        developer.log('Error al obtener unidades: \\${response.statusCode}', name: 'api_error');
+        developer.log(
+          'Error al obtener unidades: \\${response.statusCode}',
+          name: 'api_error',
+        );
       }
     } catch (e) {
       developer.log('Error de red al obtener unidades: $e', name: 'api_error');
@@ -98,13 +104,16 @@ class _UnidadesListState extends State<UnidadesList> {
 
   void _filtrarUnidades(String query) {
     setState(() {
-      _unidadesFiltradas = _unidades.where((unidad) {
-        final placa = unidad['placa']?.toLowerCase() ?? '';
-        final modelo = unidad['modelo']?.toLowerCase() ?? '';
-        final descModelo = unidad['descripcionModelo']?.toLowerCase() ?? '';
-        final filtro = query.toLowerCase();
-        return placa.contains(filtro) || modelo.contains(filtro) || descModelo.contains(filtro);
-      }).toList();
+      _unidadesFiltradas =
+          _unidades.where((unidad) {
+            final placa = unidad['placa']?.toLowerCase() ?? '';
+            final modelo = unidad['modelo']?.toLowerCase() ?? '';
+            final descModelo = unidad['descripcionModelo']?.toLowerCase() ?? '';
+            final filtro = query.toLowerCase();
+            return placa.contains(filtro) ||
+                modelo.contains(filtro) ||
+                descModelo.contains(filtro);
+          }).toList();
     });
   }
 
@@ -162,7 +171,10 @@ class _UnidadesListState extends State<UnidadesList> {
         );
       }
     } catch (e, stack) {
-      developer.log('Error en _eliminarUnidadApi: $e\n$stack', name: 'api_error');
+      developer.log(
+        'Error en _eliminarUnidadApi: $e\n$stack',
+        name: 'api_error',
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -177,7 +189,7 @@ class _UnidadesListState extends State<UnidadesList> {
     _puestosController.dispose();
     _anioController.dispose();
     _descripcionModeloController.dispose();
-     _searchController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -259,7 +271,7 @@ class _UnidadesListState extends State<UnidadesList> {
                       labelText: 'Placa',
                       border: OutlineInputBorder(),
                     ),
-                    readOnly: soloConsulta,
+                    readOnly: soloConsulta || _indiceEdicion != null,
                     validator:
                         (value) =>
                             validatePlaca(value, soloConsulta: soloConsulta),
@@ -289,10 +301,10 @@ class _UnidadesListState extends State<UnidadesList> {
                             '${modelo['modelCode']} - ${modelo['description']}',
                           ),
                         );
-                      }),
+                      }).toList(),
                     ],
                     onChanged:
-                        soloConsulta
+                        (soloConsulta || _indiceEdicion != null)
                             ? null
                             : (value) {
                               setState(() {
@@ -322,6 +334,12 @@ class _UnidadesListState extends State<UnidadesList> {
                     ),
                     maxLines: 2,
                     readOnly: true,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Debe seleccionar un modelo para ver la descripción';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 15),
                   TextFormField(
@@ -420,50 +438,56 @@ class _UnidadesListState extends State<UnidadesList> {
     );
   }
 
-void _agregarUnidad() async {
-  if (_serverUrl == null) return;
-  final nuevaUnidad = {
-    'plate': _placaController.text,
-    'description': _descripcionController.text,
-    'modelCode': _modeloSeleccionadoApi,
-    'seatCount': int.parse(_puestosController.text),
-    'type': _tipoSeleccionado,
-    'year': int.parse(_anioController.text),
-  };
-  final url = Uri.parse('$_serverUrl''units');
-  try {
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode(nuevaUnidad),
+  void _agregarUnidad() async {
+    if (_serverUrl == null) return;
+    final nuevaUnidad = {
+      'plate': _placaController.text,
+      'description': _descripcionController.text,
+      'modelCode': _modeloSeleccionadoApi,
+      'seatCount': int.parse(_puestosController.text),
+      'type': _tipoSeleccionado,
+      'year': int.parse(_anioController.text),
+    };
+    final url = Uri.parse(
+      '$_serverUrl'
+      'units',
     );
-    developer.log('POST URL: $url', name: 'api_post');
-    developer.log('JSON enviado: ${json.encode(nuevaUnidad)}', name: 'api_post');
-    developer.log('Status: ${response.statusCode}', name: 'api_post');
-    developer.log('Respuesta: ${response.body}', name: 'api_post');
-    if (response.statusCode == 201 || response.statusCode == 200) {
-      await _fetchUnidades();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unidad agregada correctamente.')),
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(nuevaUnidad),
       );
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error al agregar: \\${response.statusCode}')),
+      developer.log('POST URL: $url', name: 'api_post');
+      developer.log(
+        'JSON enviado: ${json.encode(nuevaUnidad)}',
+        name: 'api_post',
       );
+      developer.log('Status: ${response.statusCode}', name: 'api_post');
+      developer.log('Respuesta: ${response.body}', name: 'api_post');
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        await _fetchUnidades();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unidad agregada correctamente.')),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al agregar: \\${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error de red al agregar: $e')));
     }
-  } catch (e) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error de red al agregar: $e')),
-    );
+    _placaController.clear();
+    _descripcionController.clear();
+    _puestosController.clear();
+    _anioController.clear();
   }
-  _placaController.clear();
-  _descripcionController.clear();
-  _puestosController.clear();
-  _anioController.clear();
-}
 
   void _actualizarUnidad() async {
     if (_indiceEdicion != null) {
@@ -520,131 +544,168 @@ void _agregarUnidad() async {
         backgroundColor: AppColors.primary,
         foregroundColor: AppTextColors.inverseText,
       ),
-      body: _cargando
-    ? const Center(child: CircularProgressIndicator())
-    : Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _filtrarUnidades,
-              decoration: const InputDecoration(
-                labelText: 'Buscar por placa o modelo',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.search),
-              ),
-            ),
-          ),
-          Expanded(
-            child: _unidadesFiltradas.isEmpty
-                ? Center(
-                    child: _unidades.isEmpty
-                        ? Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.directions_bus,
-                                size: 60,
-                                color: AppColors.secondary,
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                'No hay unidades registradas',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  color: AppTextColors.secondaryText,
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                'Presione el botón + para agregar una nueva',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: AppTextColors.disabledText,
-                                ),
-                              ),
-                            ],
-                          )
-                        : Text(
-                            'No hay resultados',
-                            style: TextStyle(color: AppTextColors.disabledText),
-                          ),
-                  )
-                : ListView.builder(
-                    itemCount: _unidadesFiltradas.length,
-                    itemBuilder: (context, index) {
-                      final unidad = _unidadesFiltradas[index];
-                      final descripcionModelo = _modelosApi.firstWhere(
-                        (m) => m['modelCode'] == unidad['modelo'],
-                        orElse: () => {'description': ''},
-                      )['description'] ?? '';
-                      return Card(
-                        margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        child: InkWell(
-                          onTap: () {
-                            _mostrarFormulario(unidad: unidad, soloConsulta: true);
-                          },
-                          child: Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.directions_bus, color: AppColors.primary),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        unidad['placa'],
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text('${unidad['modelo']} - ${unidad['tipo']}'),
-                                      if (descripcionModelo.isNotEmpty)
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 4.0),
-                                          child: Text(
-                                            descripcionModelo,
-                                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                                Text('${unidad['puestos']} puestos'),
-                                PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert),
-                                  itemBuilder: (BuildContext context) {
-                                    return [
-                                      const PopupMenuItem<String>(
-                                        value: 'modificar',
-                                        child: Text('Modificar'),
-                                      ),
-                                      const PopupMenuItem<String>(
-                                        value: 'eliminar',
-                                        child: Text('Eliminar'),
-                                      ),
-                                    ];
-                                  },
-                                  onSelected: (String value) {
-                                    if (value == 'modificar') {
-                                      _mostrarFormulario(unidad: unidad);
-                                    } else if (value == 'eliminar') {
-                                      _eliminarUnidadApi(unidad['placa'], index);
-                                    }
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+      body:
+          _cargando
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextField(
+                      controller: _searchController,
+                      onChanged: _filtrarUnidades,
+                      decoration: const InputDecoration(
+                        labelText: 'Buscar por placa o modelo',
+                        border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                    ),
                   ),
-          ),
-        ],
-      ),
+                  Expanded(
+                    child:
+                        _unidadesFiltradas.isEmpty
+                            ? Center(
+                              child:
+                                  _unidades.isEmpty
+                                      ? Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                            Icons.directions_bus,
+                                            size: 60,
+                                            color: AppColors.secondary,
+                                          ),
+                                          const SizedBox(height: 20),
+                                          Text(
+                                            'No hay unidades registradas',
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              color:
+                                                  AppTextColors.secondaryText,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            'Presione el botón + para agregar una nueva',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              color: AppTextColors.disabledText,
+                                            ),
+                                          ),
+                                        ],
+                                      )
+                                      : Text(
+                                        'No hay resultados',
+                                        style: TextStyle(
+                                          color: AppTextColors.disabledText,
+                                        ),
+                                      ),
+                            )
+                            : ListView.builder(
+                              itemCount: _unidadesFiltradas.length,
+                              itemBuilder: (context, index) {
+                                final unidad = _unidadesFiltradas[index];
+                                final descripcionModelo =
+                                    _modelosApi.firstWhere(
+                                      (m) => m['modelCode'] == unidad['modelo'],
+                                      orElse: () => {'description': ''},
+                                    )['description'] ??
+                                    '';
+                                return Card(
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 5,
+                                  ),
+                                  child: InkWell(
+                                    onTap: () {
+                                      _mostrarFormulario(
+                                        unidad: unidad,
+                                        soloConsulta: true,
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.directions_bus,
+                                            color: AppColors.primary,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Expanded(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
+                                              children: [
+                                                Text(
+                                                  unidad['placa'],
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 4),
+                                                Text(
+                                                  '${unidad['modelo']} - ${unidad['tipo']}',
+                                                ),
+                                                if (descripcionModelo
+                                                    .isNotEmpty)
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.only(
+                                                          top: 4.0,
+                                                        ),
+                                                    child: Text(
+                                                      descripcionModelo,
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.grey[600],
+                                                      ),
+                                                    ),
+                                                  ),
+                                              ],
+                                            ),
+                                          ),
+                                          Text('${unidad['puestos']} puestos'),
+                                          PopupMenuButton<String>(
+                                            icon: const Icon(Icons.more_vert),
+                                            itemBuilder: (
+                                              BuildContext context,
+                                            ) {
+                                              return [
+                                                const PopupMenuItem<String>(
+                                                  value: 'modificar',
+                                                  child: Text('Modificar'),
+                                                ),
+                                                const PopupMenuItem<String>(
+                                                  value: 'eliminar',
+                                                  child: Text('Eliminar'),
+                                                ),
+                                              ];
+                                            },
+                                            onSelected: (String value) {
+                                              if (value == 'modificar') {
+                                                _mostrarFormulario(
+                                                  unidad: unidad,
+                                                );
+                                              } else if (value == 'eliminar') {
+                                                _eliminarUnidadApi(
+                                                  unidad['placa'],
+                                                  index,
+                                                );
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                  ),
+                ],
+              ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _mostrarFormulario(),
         backgroundColor: AppColors.primary,
