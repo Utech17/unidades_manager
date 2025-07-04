@@ -24,7 +24,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
     setState(() {
       _savedUrl =
           prefs.getString('server_url') ??
-          'https://api-unidades-manager.onrender.com/api/v1/units/';
+          'https://api-unidades-manager.onrender.com/api/v1/';
       _controller.text = _savedUrl!;
     });
   }
@@ -60,7 +60,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                 controller: _controller,
                 decoration: InputDecoration(
                   border: OutlineInputBorder(),
-                  labelText: 'Ej: http://192.168.1.64/api/v1/',
+                  labelText: 'Ej: https://api-unidades-manager.onrender.com/api/v1/',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {

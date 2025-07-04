@@ -29,7 +29,7 @@ class _CameraScreenState extends State<CameraScreen> {
   Future<void> _loadServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _serverUrl = prefs.getString('server_url') ?? 'http://localhost:3000/api/v1/';
+      _serverUrl = prefs.getString('server_url');
     });
   }
 
@@ -98,16 +98,16 @@ class _CameraScreenState extends State<CameraScreen> {
               ],
             ),
             ElevatedButton(
-              child: const Text("ENVIAR AL SERVIDOR"),
               onPressed: _uploading ? null : _enviarImagen,
+              child: const Text("ENVIAR AL SERVIDOR"),
             ),
             if (_loadingImage || _uploading)
               Container(
-                child: CircularProgressIndicator(strokeWidth: 4.0),
                 margin: EdgeInsets.symmetric(vertical: 10),
+                child: CircularProgressIndicator(strokeWidth: 4.0),
               ),
             Text(_mensajeServer ?? ''),
-            Text('Uso Cámara/Galería, Flutter Julio 2025'),
+            const Text('Uso Cámara/Galería, Flutter Julio 2025'),
           ],
         ),
       ),
