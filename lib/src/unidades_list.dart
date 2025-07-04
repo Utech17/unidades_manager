@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:unidades_manager/core/app_colors.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:developer' as developer;
+import 'package:shared_preferences/shared_preferences.dart';
 
 class UnidadesList extends StatefulWidget {
   const UnidadesList({super.key});
@@ -9,63 +13,132 @@ class UnidadesList extends StatefulWidget {
 }
 
 class _UnidadesListState extends State<UnidadesList> {
-  List<Map<String, dynamic>> _unidades = [];
-  final List<String> _modelos = [
-    'Toyota Coaster',
-    'Mercedes Sprinter',
-    'Ford Transit',
-    'Nissan Civilian'
-  ];
+  final List<Map<String, dynamic>> _unidades = [];
   final List<String> _tipos = ['Buseta', 'Por Puestos'];
 
-  // Controladores para el formulario
   final _formKey = GlobalKey<FormState>();
   final _placaController = TextEditingController();
   final _descripcionController = TextEditingController();
-  String _modeloSeleccionado = 'Toyota Coaster';
   final _puestosController = TextEditingController();
   String _tipoSeleccionado = 'Buseta';
   final _anioController = TextEditingController();
   final _descripcionModeloController = TextEditingController();
 
-  // Variables para controlar edición
-  int? _unidadEditandoIndex;
+  int? _indiceEdicion;
+  String? _serverUrl;
   bool _cargando = false;
+
+  // Lista de modelos obtenidos de la API
+  List<Map<String, dynamic>> _modelosApi = [];
+  String? _modeloSeleccionadoApi; // modelCode seleccionado
+  String _descripcionModeloSeleccionado = '';
 
   @override
   void initState() {
     super.initState();
-    _cargarUnidadesIniciales();
+    _inicializarPantalla();
   }
 
-  // Simular carga inicial de datos (reemplazar con API luego)
-  void _cargarUnidadesIniciales() async {
+  Future<void> _inicializarPantalla() async {
     setState(() => _cargando = true);
-    // TODO: Reemplazar con llamada a API
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _unidades = [
-        {
-          'placa': 'ABC123',
-          'descripcion': 'Unidad de transporte escolar',
-          'modelo': 'Toyota Coaster',
-          'descripcionModelo': 'Modelo 2020, color blanco',
-          'puestos': 24,
-          'tipo': 'Buseta',
-          'anio': 2020,
-        },
-        {
-          'placa': 'XYZ789',
-          'descripcion': 'Transporte ejecutivo',
-          'modelo': 'Mercedes Sprinter',
-          'descripcionModelo': 'Asientos de cuero, WiFi',
-          'puestos': 12,
-          'tipo': 'Por Puestos',
-          'anio': 2021,
-        }
-      ];
-      _cargando = false;
-    });
+    await _loadServerUrl();
+    await _fetchUnidades();
+    setState(() => _cargando = false);
+  }
+
+  Future<void> _loadServerUrl() async {
+    final prefs = await SharedPreferences.getInstance();
+    _serverUrl = prefs.getString('server_url');
+  }
+
+  Future<void> _fetchUnidades() async {
+    if (_serverUrl == null) return;
+    try {
+      final url = Uri.parse('$_serverUrl''units');
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        final Set<String> modelosApi = {};
+        final Map<String, String> descripcionesModelosApi = {};
+        setState(() {
+          _unidades.clear();
+          for (var unidad in data) {
+            final modelCode = unidad['modelCode'] ?? '';
+            final modelDesc = unidad['model'] != null ? unidad['model']['description'] ?? '' : '';
+            _unidades.add({
+              'placa': unidad['plate'] ?? '',
+              'descripcion': unidad['description'] ?? '',
+              'modelo': modelCode,
+              'descripcionModelo': modelDesc,
+              'puestos': unidad['seatCount'] ?? 0,
+              'tipo': unidad['type'] ?? '',
+              'anio': unidad['year'] ?? 0,
+            });
+            if (modelCode.isNotEmpty) {
+              modelosApi.add(modelCode);
+              descripcionesModelosApi[modelCode] = modelDesc;
+            }
+          }
+          // Solo los modelos de la API
+          // Guardar descripciones de modelos
+        });
+      } else {
+        developer.log('Error al obtener unidades: \\${response.statusCode}', name: 'api_error');
+      }
+    } catch (e) {
+      developer.log('Error de red al obtener unidades: $e', name: 'api_error');
+    }
+  }
+
+  Future<void> _fetchModelosApi() async {
+    if (_serverUrl == null) return;
+    try {
+      final url = Uri.parse('$_serverUrl''models');
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _modelosApi = data.map<Map<String, dynamic>>((m) => {
+            'modelCode': m['modelCode'],
+            'description': m['description'] ?? '',
+          }).toList();
+        });
+      } else {
+        developer.log('Error al obtener modelos: \\${response.statusCode}', name: 'api_error');
+      }
+    } catch (e) {
+      developer.log('Error de red al obtener modelos: $e', name: 'api_error');
+    }
+  }
+
+  Future<void> _eliminarUnidadApi(String plate, int index) async {
+    if (_serverUrl == null) return;
+    try {
+      final cleanPlate = plate.trim();
+      final url = Uri.parse('$_serverUrl''units/$cleanPlate');
+      developer.log('DELETE URL: $url', name: 'api_delete');
+      final response = await http.delete(
+        url,
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        await _fetchUnidades();
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unidad eliminada correctamente.')),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error al eliminar: \\${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error de red al eliminar: $e')),
+      );
+    }
   }
 
   @override
@@ -78,20 +151,37 @@ class _UnidadesListState extends State<UnidadesList> {
     super.dispose();
   }
 
-  void _mostrarFormulario({Map<String, dynamic>? unidad, bool soloConsulta = false, int? index}) {
+  void _mostrarFormulario({
+    Map<String, dynamic>? unidad,
+    bool soloConsulta = false,
+  }) async {
+    await _fetchModelosApi();
+    if (_modelosApi.isNotEmpty) {
+      if (unidad != null) {
+        _modeloSeleccionadoApi = unidad['modelo'];
+      } else {
+        _modeloSeleccionadoApi = _modelosApi.first['modelCode'];
+      }
+      _descripcionModeloSeleccionado = _modelosApi.firstWhere(
+        (m) => m['modelCode'] == _modeloSeleccionadoApi,
+        orElse: () => {'description': ''},
+      )['description'] ?? '';
+    }
+    // ...resto de la lógica de asignación de controladores...
     if (unidad != null) {
       _placaController.text = unidad['placa'];
       _descripcionController.text = unidad['descripcion'];
-      _modeloSeleccionado = unidad['modelo'];
-      _descripcionModeloController.text = unidad['descripcionModelo'] ?? '';
       _puestosController.text = unidad['puestos'].toString();
-      _tipoSeleccionado = unidad['tipo'];
+      _tipoSeleccionado = _tipos.contains(unidad['tipo']) ? unidad['tipo'] : _tipos.first;
       _anioController.text = unidad['anio'].toString();
-      _unidadEditandoIndex = index;
+      _indiceEdicion = _unidades.indexOf(unidad);
     } else {
-      _unidadEditandoIndex = null;
+      _indiceEdicion = null;
+      _placaController.clear();
+      _descripcionController.clear();
+      _puestosController.clear();
+      _anioController.clear();
     }
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -108,11 +198,9 @@ class _UnidadesListState extends State<UnidadesList> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    soloConsulta 
-                      ? 'Detalles de la Unidad'
-                      : _unidadEditandoIndex != null 
-                        ? 'Editar Unidad' 
-                        : 'Nueva Unidad',
+                    soloConsulta
+                        ? 'Detalles de la Unidad'
+                        : (unidad != null ? 'Editar Unidad' : 'Nueva Unidad'),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -145,19 +233,22 @@ class _UnidadesListState extends State<UnidadesList> {
                   ),
                   const SizedBox(height: 15),
                   DropdownButtonFormField<String>(
-                    value: _modeloSeleccionado,
-                    items: _modelos.map((modelo) {
-                      return DropdownMenuItem(
-                        value: modelo,
-                        child: Text(modelo),
+                    value: _modeloSeleccionadoApi,
+                    items: _modelosApi.map<DropdownMenuItem<String>>((modelo) {
+                      return DropdownMenuItem<String>(
+                        value: modelo['modelCode'] as String,
+                        child: Text('${modelo['modelCode']}'),
                       );
                     }).toList(),
                     onChanged: soloConsulta
                         ? null
                         : (value) {
                             setState(() {
-                              _modeloSeleccionado = value!;
-                              _descripcionModeloController.clear();
+                              _modeloSeleccionadoApi = value;
+                              _descripcionModeloSeleccionado = _modelosApi.firstWhere(
+                                (m) => m['modelCode'] == value,
+                                orElse: () => {'description': ''},
+                              )['description'] ?? '';
                             });
                           },
                     decoration: const InputDecoration(
@@ -167,16 +258,13 @@ class _UnidadesListState extends State<UnidadesList> {
                   ),
                   const SizedBox(height: 15),
                   TextFormField(
-                    controller: _descripcionModeloController,
-                    decoration: InputDecoration(
-                      labelText: 'Descripción del ${_modeloSeleccionado}',
-                      border: const OutlineInputBorder(),
-                      hintText: soloConsulta
-                          ? null
-                          : 'Ingrese detalles específicos de este modelo',
+                    initialValue: _descripcionModeloSeleccionado,
+                    decoration: const InputDecoration(
+                      labelText: 'Descripción del modelo',
+                      border: OutlineInputBorder(),
                     ),
                     maxLines: 2,
-                    readOnly: soloConsulta,
+                    readOnly: true,
                   ),
                   const SizedBox(height: 15),
                   TextFormField(
@@ -200,17 +288,21 @@ class _UnidadesListState extends State<UnidadesList> {
                   const SizedBox(height: 15),
                   DropdownButtonFormField<String>(
                     value: _tipoSeleccionado,
-                    items: _tipos.map((tipo) {
-                      return DropdownMenuItem(
-                        value: tipo,
-                        child: Text(tipo),
-                      );
-                    }).toList(),
-                    onChanged: soloConsulta ? null : (value) {
-                      setState(() {
-                        _tipoSeleccionado = value!;
-                      });
-                    },
+                    items:
+                        _tipos.map((tipo) {
+                          return DropdownMenuItem(
+                            value: tipo,
+                            child: Text(tipo),
+                          );
+                        }).toList(),
+                    onChanged:
+                        soloConsulta
+                            ? null
+                            : (value) {
+                              setState(() {
+                                _tipoSeleccionado = value!;
+                              });
+                            },
                     decoration: const InputDecoration(
                       labelText: 'Tipo',
                       border: OutlineInputBorder(),
@@ -247,8 +339,10 @@ class _UnidadesListState extends State<UnidadesList> {
                           onPressed: () {
                             Navigator.pop(context);
                           },
-                          child: const Text('Cancelar', 
-                              style: TextStyle(color: AppTextColors.inverseText)),
+                          child: const Text(
+                            'Cancelar',
+                            style: TextStyle(color: AppTextColors.inverseText),
+                          ),
                         ),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(
@@ -256,13 +350,17 @@ class _UnidadesListState extends State<UnidadesList> {
                           ),
                           onPressed: () {
                             if (_formKey.currentState!.validate()) {
-                              _guardarUnidad();
+                              if (_indiceEdicion != null) {
+                                _actualizarUnidad();
+                              } else {
+                                _agregarUnidad();
+                              }
                               Navigator.pop(context);
                             }
                           },
-                          child: Text(
-                            _unidadEditandoIndex != null ? 'Actualizar' : 'Guardar',
-                            style: const TextStyle(color: AppTextColors.inverseText),
+                          child: const Text(
+                            'Guardar',
+                            style: TextStyle(color: AppTextColors.inverseText),
                           ),
                         ),
                       ],
@@ -277,94 +375,71 @@ class _UnidadesListState extends State<UnidadesList> {
     );
   }
 
-  Future<void> _guardarUnidad() async {
-    final nuevaUnidad = {
-      'placa': _placaController.text,
-      'descripcion': _descripcionController.text,
-      'modelo': _modeloSeleccionado,
-      'descripcionModelo': _descripcionModeloController.text,
-      'puestos': int.parse(_puestosController.text),
-      'tipo': _tipoSeleccionado,
-      'anio': int.parse(_anioController.text),
-    };
-
-    setState(() => _cargando = true);
-    
-    try {
-      if (_unidadEditandoIndex != null) {
-        // Actualizar unidad existente
-        // TODO: Reemplazar con llamada a API
-        await Future.delayed(const Duration(seconds: 1));
-        setState(() {
-          _unidades[_unidadEditandoIndex!] = nuevaUnidad;
-        });
-      } else {
-        // Agregar nueva unidad
-        // TODO: Reemplazar con llamada a API
-        await Future.delayed(const Duration(seconds: 1));
-        setState(() {
-          _unidades.add(nuevaUnidad);
-        });
-      }
-    } catch (e) {
-      // TODO: Manejar errores de API
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
-    } finally {
-      setState(() => _cargando = false);
-      _limpiarFormulario();
-    }
-  }
-
-  Future<void> _eliminarUnidad(int index) async {
-    final unidad = _unidades[index];
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: Text('¿Está seguro que desea eliminar la unidad ${unidad['placa']}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Eliminar', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmado == true) {
-      setState(() => _cargando = true);
-      try {
-        // TODO: Reemplazar con llamada a API
-        await Future.delayed(const Duration(seconds: 1));
-        setState(() {
-          _unidades.removeAt(index);
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unidad eliminada correctamente')),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al eliminar: $e')),
-        );
-      } finally {
-        setState(() => _cargando = false);
-      }
-    }
-  }
-
-  void _limpiarFormulario() {
+  void _agregarUnidad() async {
+    setState(() {
+      _unidades.add({
+        'placa': _placaController.text,
+        'descripcion': _descripcionController.text,
+        'modelCode': _modeloSeleccionadoApi,
+        'puestos': int.parse(_puestosController.text),
+        'tipo': _tipoSeleccionado,
+        'anio': int.parse(_anioController.text),
+      });
+    });
+    // Aquí deberías hacer la petición POST a la API si corresponde
+    await _fetchUnidades();
     _placaController.clear();
     _descripcionController.clear();
     _puestosController.clear();
     _anioController.clear();
-    _descripcionModeloController.clear();
-    _unidadEditandoIndex = null;
+  }
+
+  void _actualizarUnidad() async {
+    if (_indiceEdicion != null) {
+      final unidadEditada = {
+        'plate': _placaController.text,
+        'description': _descripcionController.text,
+        'modelCode': _modeloSeleccionadoApi,
+        'seatCount': int.parse(_puestosController.text),
+        'type': _tipoSeleccionado,
+        'year': int.parse(_anioController.text),
+      };
+      final plate = _placaController.text;
+      final url = Uri.parse('$_serverUrl''units/$plate');
+      try {
+        developer.log(json.encode(unidadEditada), name: 'unidad_editada');
+        developer.log(url.toString(), name: 'url_api');
+        final response = await http.put(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode(unidadEditada),
+        );
+        developer.log('Status: \\${response.statusCode}', name: 'api_status');
+        developer.log('Body: \\${response.body}', name: 'api_body');
+        if (response.statusCode == 200 || response.statusCode == 204) {
+          await _fetchUnidades();
+        } else {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Error al actualizar en la API: \\${response.statusCode}',
+              ),
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error de red al actualizar: $e')),
+        );
+      }
+    }
+    _placaController.clear();
+    _descripcionController.clear();
+    _puestosController.clear();
+    _anioController.clear();
+    _indiceEdicion = null;
   }
 
   @override
@@ -382,7 +457,11 @@ class _UnidadesListState extends State<UnidadesList> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.directions_bus, size: 60, color: AppColors.secondary),
+                      const Icon(
+                        Icons.directions_bus,
+                        size: 60,
+                        color: AppColors.secondary,
+                      ),
                       const SizedBox(height: 20),
                       Text(
                         'No hay unidades registradas',
@@ -406,32 +485,47 @@ class _UnidadesListState extends State<UnidadesList> {
                   itemCount: _unidades.length,
                   itemBuilder: (context, index) {
                     final unidad = _unidades[index];
+                    final descripcionModelo = _modelosApi.firstWhere(
+                      (m) => m['modelCode'] == unidad['modelo'],
+                      orElse: () => {'description': ''},
+                    )['description'] ?? '';
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       child: InkWell(
                         onTap: () {
-                          _mostrarFormulario(unidad: unidad, soloConsulta: true, index: index);
+                          _mostrarFormulario(unidad: unidad, soloConsulta: true);
                         },
                         child: Padding(
                           padding: const EdgeInsets.all(8.0),
                           child: Row(
                             children: [
-                              const Icon(Icons.directions_bus, color: AppColors.primary),
+                              const Icon(
+                                Icons.directions_bus,
+                                color: AppColors.primary,
+                              ),
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(unidad['placa'], 
-                                        style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    Text(
+                                      unidad['placa'],
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                     const SizedBox(height: 4),
-                                    Text('${unidad['modelo']} - ${unidad['tipo']}'),
-                                    if (unidad['descripcionModelo'] != null && 
-                                        unidad['descripcionModelo'].isNotEmpty)
+                                    Text(
+                                      '${unidad['modelo']} - ${unidad['tipo']}',
+                                    ),
+                                    if (descripcionModelo.isNotEmpty)
                                       Padding(
                                         padding: const EdgeInsets.only(top: 4.0),
                                         child: Text(
-                                          unidad['descripcionModelo'],
+                                          descripcionModelo,
                                           style: TextStyle(
                                             fontSize: 12,
                                             color: Colors.grey[600],
@@ -452,16 +546,16 @@ class _UnidadesListState extends State<UnidadesList> {
                                     ),
                                     const PopupMenuItem<String>(
                                       value: 'eliminar',
-                                      child: Text('Eliminar', style: TextStyle(color: Colors.red)),
+                                      child: Text('Eliminar'),
                                     ),
                                   ];
                                 },
                                 onSelected: (String value) {
                                   if (value == 'modificar') {
-                                    _mostrarFormulario(unidad: unidad, index: index);
+                                    _mostrarFormulario(unidad: unidad);
                                   } else if (value == 'eliminar') {
-                                    _eliminarUnidad(index);
-                                  }
+                                    _eliminarUnidadApi(unidad['placa'], index);
+                                          }
                                 },
                               ),
                             ],
@@ -480,22 +574,3 @@ class _UnidadesListState extends State<UnidadesList> {
     );
   }
 }
-
-// TODO: Implementar estas funciones cuando tengas la API
-/*
-Future<List<Map<String, dynamic>>> _obtenerUnidadesDeAPI() async {
-  // Implementar llamada a API para obtener unidades
-}
-
-Future<Map<String, dynamic>> _crearUnidadEnAPI(Map<String, dynamic> unidad) async {
-  // Implementar llamada a API para crear
-}
-
-Future<Map<String, dynamic>> _actualizarUnidadEnAPI(Map<String, dynamic> unidad) async {
-  // Implementar llamada a API para actualizar
-}
-
-Future<bool> _eliminarUnidadEnAPI(String id) async {
-  // Implementar llamada a API para eliminar
-}
-*/
