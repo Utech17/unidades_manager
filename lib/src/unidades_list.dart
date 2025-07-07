@@ -5,6 +5,8 @@ import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:unidades_manager/core/validators.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class UnidadesList extends StatefulWidget {
   const UnidadesList({super.key});
@@ -35,6 +37,9 @@ class _UnidadesListState extends State<UnidadesList> {
   List<Map<String, dynamic>> _modelosApi = [];
   String? _modeloSeleccionadoApi; // modelCode seleccionado
   String _descripcionModeloSeleccionado = '';
+
+  File? _imagenSeleccionada;
+  String? _imagenActualUrl;
 
   @override
   void initState() {
@@ -83,6 +88,7 @@ class _UnidadesListState extends State<UnidadesList> {
               'puestos': unidad['seatCount'] ?? 0,
               'tipo': unidad['type'] ?? '',
               'anio': unidad['year'] ?? 0,
+              'image': unidad['image'], // <-- Asegura que el campo image esté presente
             });
             if (modelCode.isNotEmpty) {
               modelosApi.add(modelCode);
@@ -266,6 +272,14 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
       _anioController.clear();
     }
 
+    // Imagen actual
+    if (unidad != null && unidad['image'] != null && (unidad['image'] as String).isNotEmpty) {
+      _imagenActualUrl = '${_serverUrl != null ? (_serverUrl!.endsWith('/') ? _serverUrl : '${_serverUrl!}/') : ''}images/${unidad['image']}';
+    } else {
+      _imagenActualUrl = null;
+    }
+    _imagenSeleccionada = null;
+
     // Verificar si el widget sigue montado antes de usar context
     if (!mounted) return;
 
@@ -331,7 +345,7 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
                             '${modelo['modelCode']} - ${modelo['description']}',
                           ),
                         );
-                      }).toList(),
+                      }),
                     ],
                     onChanged:
                         (soloConsulta || _indiceEdicion != null)
@@ -420,6 +434,48 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
                         (value) =>
                             validateAnio(value, soloConsulta: soloConsulta),
                   ),
+                  // Imagen actual o seleccionada
+                  if (_imagenSeleccionada != null)
+                    Column(
+                      children: [
+                        Image.file(_imagenSeleccionada!, height: 120),
+                        const SizedBox(height: 8),
+                        if (!soloConsulta)
+                          TextButton.icon(
+                            icon: const Icon(Icons.delete),
+                            label: const Text('Quitar imagen'),
+                            onPressed: () {
+                              setState(() {
+                                _imagenSeleccionada = null;
+                              });
+                            },
+                          ),
+                      ],
+                    )
+                  else if (_imagenActualUrl != null)
+                    Image.network(_imagenActualUrl!, height: 120)
+                  else
+                    const Icon(Icons.directions_bus, size: 80, color: AppColors.primary),
+                  if (!soloConsulta) ...[
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton.icon(
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text('Cámara'),
+                          onPressed: _tomarFoto,
+                        ),
+                        const SizedBox(width: 10),
+                        TextButton.icon(
+                          icon: const Icon(Icons.photo_library),
+                          label: const Text('Galería'),
+                          onPressed: _seleccionarImagen,
+                        ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 15),
+                  // ...resto de los campos del formulario
                   if (!soloConsulta) ...[
                     const SizedBox(height: 20),
                     Row(
@@ -468,8 +524,41 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
     );
   }
 
+  Future<void> _seleccionarImagen() async {
+    final picker = ImagePicker();
+    final XFile? pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 800,
+      maxHeight: 800,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        _imagenSeleccionada = File(pickedFile.path);
+      });
+    }
+  }
+
+  Future<void> _tomarFoto() async {
+    final picker = ImagePicker();
+    final XFile? pickedFile = await picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 800,
+      maxHeight: 800,
+    );
+    if (pickedFile != null) {
+      setState(() {
+        _imagenSeleccionada = File(pickedFile.path);
+      });
+    }
+  }
+
   void _agregarUnidad() async {
     if (_serverUrl == null) return;
+    String? imageBase64;
+    if (_imagenSeleccionada != null) {
+      final bytes = await _imagenSeleccionada!.readAsBytes();
+      imageBase64 = base64Encode(bytes);
+    }
     final nuevaUnidad = {
       'plate': _placaController.text,
       'description': _descripcionController.text,
@@ -477,6 +566,7 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
       'seatCount': int.parse(_puestosController.text),
       'type': _tipoSeleccionado,
       'year': int.parse(_anioController.text),
+      if (imageBase64 != null) 'imageBase64': imageBase64,
     };
     final url = Uri.parse(
       '$_serverUrl'
@@ -490,11 +580,11 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
       );
       developer.log('POST URL: $url', name: 'api_post');
       developer.log(
-        'JSON enviado: ${json.encode(nuevaUnidad)}',
+        'JSON enviado: \\${json.encode(nuevaUnidad)}',
         name: 'api_post',
       );
-      developer.log('Status: ${response.statusCode}', name: 'api_post');
-      developer.log('Respuesta: ${response.body}', name: 'api_post');
+      developer.log('Status: \\${response.statusCode}', name: 'api_post');
+      developer.log('Respuesta: \\${response.body}', name: 'api_post');
       if (response.statusCode == 201 || response.statusCode == 200) {
         await _fetchUnidades();
         if (!mounted) return;
@@ -517,10 +607,16 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
     _descripcionController.clear();
     _puestosController.clear();
     _anioController.clear();
+    _imagenSeleccionada = null;
   }
 
   void _actualizarUnidad() async {
     if (_indiceEdicion != null) {
+      String? imageBase64;
+      if (_imagenSeleccionada != null) {
+        final bytes = await _imagenSeleccionada!.readAsBytes();
+        imageBase64 = base64Encode(bytes);
+      }
       final unidadEditada = {
         'plate': _placaController.text,
         'description': _descripcionController.text,
@@ -528,6 +624,7 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
         'seatCount': int.parse(_puestosController.text),
         'type': _tipoSeleccionado,
         'year': int.parse(_anioController.text),
+        if (imageBase64 != null) 'imageBase64': imageBase64,
       };
       final plate = _placaController.text;
       final url = Uri.parse(
@@ -564,6 +661,7 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
     _puestosController.clear();
     _anioController.clear();
     _indiceEdicion = null;
+    _imagenSeleccionada = null;
   }
 
   @override
@@ -658,10 +756,25 @@ Future<void> _eliminarUnidadApi(String plate, int index) async {
                                       padding: const EdgeInsets.all(8.0),
                                       child: Row(
                                         children: [
-                                          const Icon(
-                                            Icons.directions_bus,
-                                            color: AppColors.primary,
-                                          ),
+                                          // Mostrar imagen si existe, si no el ícono por defecto
+                                          (unidad['image'] != null && (unidad['image'] as String).isNotEmpty)
+                                            ? ClipRRect(
+                                                borderRadius: BorderRadius.circular(8),
+                                                child: Image.network(
+                                                  '${_serverUrl != null ? (_serverUrl!.endsWith('/') ? _serverUrl : '${_serverUrl!}/') : ''}images/${unidad['image']}',
+                                                  width: 48,
+                                                  height: 48,
+                                                  fit: BoxFit.cover,
+                                                  errorBuilder: (context, error, stackTrace) => const Icon(
+                                                    Icons.directions_bus,
+                                                    color: AppColors.primary,
+                                                  ),
+                                                ),
+                                              )
+                                            : const Icon(
+                                                Icons.directions_bus,
+                                                color: AppColors.primary,
+                                              ),
                                           const SizedBox(width: 10),
                                           Expanded(
                                             child: Column(

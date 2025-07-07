@@ -4,10 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:unidades_manager/src/home.dart';
 import 'package:unidades_manager/src/unidades_list.dart';
 import 'package:unidades_manager/core/app_colors.dart';
-import 'package:unidades_manager/src/camera_screen.dart';
 import 'package:unidades_manager/src/config_screen.dart';
 import 'package:http/http.dart' as http;
-//import 'package:unidades_manager/src/.dart';
+import 'package:unidades_manager/src/camera_screen.dart';
 
 void main() {
   runApp(const MainApp());
